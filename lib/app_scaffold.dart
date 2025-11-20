@@ -23,7 +23,12 @@ class AppScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF496BCA),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: body,
       drawer: Drawer(
         child: ListView(
