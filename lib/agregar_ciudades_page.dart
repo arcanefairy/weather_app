@@ -16,8 +16,6 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
   final TextEditingController _cityController = TextEditingController();
   final MapController _mapController = MapController();
   List ciudadData = [];
-  
-  // Coordenadas iniciales (Hermosillo)
   double selectedLat = 29.0948207;
   double selectedLon = -110.9692202;
   int? selectedIndex;
@@ -34,24 +32,20 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: "Agregar Ciudades",
-      // 1. FONDO NEGRO (Oscuro sólido)
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: const Color(0xFF121212), // Negro suave (Material Dark)
+        color: const Color(0xFF121212),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: <Widget>[
-                
-                // --- SECCIÓN DE BÚSQUEDA ---
                 _buildGlassContainer(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // TÍTULO ALINEADO A LA IZQUIERDA CON ICONO
                       const Row(
                         children: [
                           Icon(Icons.search, color: Colors.white, size: 20),
@@ -73,7 +67,7 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white.withOpacity(0.05), // Fondo muy sutil
+                          fillColor: Colors.white.withOpacity(0.05),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
@@ -87,8 +81,6 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                         ),
                       ),
                       const SizedBox(height: 15),
-                      
-                      // Botón de buscar (Neutro)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -120,9 +112,7 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
-
-                // --- RESULTADOS DE BÚSQUEDA ---
+                const SizedBox(height: 20),              
                 if (ciudadData.isNotEmpty) ...[
                   const Align(
                     alignment: Alignment.centerLeft,
@@ -135,7 +125,7 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                   Container(
                     height: 150, 
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3), // Fondo más oscuro para la lista
+                      color: Colors.black.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(color: Colors.white10),
                     ),
@@ -178,14 +168,13 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                   const SizedBox(height: 15),
                 ],
 
-                // --- BOTÓN AGREGAR (NEUTRO) ---
                 if (selectedIndex != null)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: Colors.black, // Texto negro para contraste
+                        foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -204,8 +193,6 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                   ),
                 
                 const SizedBox(height: 20),
-
-                // --- MAPA VISUALIZADOR ---
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: SizedBox(
@@ -234,7 +221,7 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                                   height: 80,
                                   child: const Icon(
                                     Icons.location_on,
-                                    color: Colors.red, // El marcador rojo se queda
+                                    color: Colors.red,
                                     size: 45,
                                   ),
                                 ),
@@ -242,7 +229,6 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                             ),
                           ],
                         ),
-                        // Borde decorativo encima del mapa
                         IgnorePointer(
                           child: Container(
                             decoration: BoxDecoration(
@@ -260,12 +246,10 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                 const Divider(color: Colors.white24),
                 const SizedBox(height: 10),
 
-                // --- SECCIÓN 3: LISTA DE CIUDADES GUARDADAS ---
                 const Row(
                   children: [
                     Icon(Icons.bookmark, color: Colors.white70),
                     SizedBox(width: 10),
-                    // TÍTULO EN MAYÚSCULAS
                     Text(
                       "CIUDADES GUARDADAS",
                       style: TextStyle(
@@ -323,7 +307,7 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
                                 '${double.parse(ciudad['latitud'].toString()).toStringAsFixed(2)}, ${double.parse(ciudad['longitud'].toString()).toStringAsFixed(2)}',
                                 style: const TextStyle(color: Colors.white60, fontSize: 12),
                               ),
-                              // Botón ELIMINAR
+
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                                 onPressed: () => _confirmarEliminacion(ciudad),
@@ -344,7 +328,6 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
     );
   }
 
-  // Helper Glassmorphism
   Widget _buildGlassContainer({required Widget child, EdgeInsets? padding}) {
     return Container(
       padding: padding ?? const EdgeInsets.all(20),
@@ -357,7 +340,6 @@ class _AgregarCiudadesPageState extends State<AgregarCiudadesPage> {
     );
   }
 
-  // --- LÓGICA ---
   Future<void> _confirmarEliminacion(Map<String, dynamic> ciudad) async {
     final bool? confirmar = await showDialog(
       context: context,
