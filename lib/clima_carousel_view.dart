@@ -4,33 +4,45 @@ import 'package:intl/intl.dart';
 
 class ClimaCarouselView extends StatefulWidget {
   final Future<List<Map<String, dynamic>>> ciudadesGuardadas;
-  // --- CAMBIO 1 ---
   // Cambiamos la firma de la función para que coincida con la nueva
   final Function(Map<String, dynamic>, {bool force}) actualizaClima;
-  
+
+  // Nuevo: Parámetros del índice que se manejan en main.dart
+  final int initialIndex;
+  final Function(int) onPageChanged;
+
   const ClimaCarouselView({
     Key? key,
     required this.ciudadesGuardadas,
     required this.actualizaClima,
+    // Nuevo: Requerimos el índice y el callback
+    required this.initialIndex,
+    required this.onPageChanged,
   }) : super(key: key);
   @override
   State<ClimaCarouselView> createState() => _ClimaCarouselViewState();
 }
 
 class _ClimaCarouselViewState extends State<ClimaCarouselView> {
-  int _currentIndex = 0; // Índice de la página actual en el PageView
-  
-  // Controlador para el PageView
-  final PageController _pageController = PageController();
+  // Comentado: Ya no se usa _currentIndex aquí, el padre lo maneja.
+  // int _currentIndex = 0;
 
-  // Asegúrate de liberar el controlador cuando el widget se destruya
+  // Comentado: Ya no se usa PageController como estado (final). Lo crearemos en el build.
+  // final PageController _pageController = PageController();
+
+  // Estado local para almacenar las ciudades (para usarlas en onPressed)
+  List<Map<String, dynamic>> _currentCiudades = [];
+
+  // Comentado: Ya no necesitamos dispose para PageController porque se recreará.
+  /*
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
+  */
 
-  // Mapa de íconos del clima
+  // Mapa de íconos del clima (sin cambios)
   IconData _obtenerIconoClima(int simbolo) {
     switch (simbolo) {
       case 0:
@@ -239,6 +251,8 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
           );
         }
         final ciudades = snapshot.data ?? [];
+        _currentCiudades = ciudades; // Sincronizamos la lista de ciudades resuelta
+
         if (ciudades.isEmpty) {
           return Container(
             decoration: BoxDecoration(
@@ -269,7 +283,7 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
             ),
           );
         }
-        
+
         // Mostrar el Carousel de ciudades
         return _buildCarousel(ciudades);
       },
@@ -277,6 +291,13 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
   }
 
   Widget _buildCarousel(List<Map<String, dynamic>> ciudades) {
+
+    // Nuevo: Creamos el PageController justo antes de usarlo.
+    // Esto fuerza la inicialización en la posición correcta con cada build.
+    final PageController localController = PageController(
+        initialPage: widget.initialIndex < ciudades.length ? widget.initialIndex : 0
+    );
+
     // Envolvemos todo en una Columna con MainAxisAlignment.center
     // para centrar nuestro carrusel (que ahora es más pequeño)
     return Column(
@@ -290,23 +311,21 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
             children: [
               // 1. El PageView que contiene las tarjetas
               PageView.builder(
-                controller: _pageController,
+                // Usamos el controlador local que acabamos de crear
+                controller: localController,
                 itemCount: ciudades.length,
                 itemBuilder: (context, index) {
                   final ciudad = ciudades[index];
                   // Usamos GestureDetector para replicar el 'onTap'
                   return GestureDetector(
-                    // --- CAMBIO 2 ---
                     // Al tocar la tarjeta, actualiza normal (force: false)
                     onTap: () => widget.actualizaClima(ciudad, force: false),
                     child: _buildCiudadCard(ciudad),
                   );
                 },
-                // Actualizamos el _currentIndex para el botón de refrescar
+                // Actualizamos el índice en el padre cuando el usuario desliza
                 onPageChanged: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
+                  widget.onPageChanged(index);
                 },
               ),
 
@@ -315,45 +334,47 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
                 top: 10, // Ajustamos la posición
                 right: 15,
                 child: IconButton(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.refresh,
                     color: Colors.white,
                     size: 28,
                   ),
                   onPressed: () {
-                    if (_currentIndex < ciudades.length) {
-                      // --- CAMBIO 3 ---
-                      // Al presionar el botón, FORZAMOS la actualización
-                      widget.actualizaClima(ciudades[_currentIndex], force: true);
+                    // Nuevo: Leemos la posición actual del controlador local para saber qué ciudad actualizar
+                    final int currentIndex = localController.page?.round() ?? 0;
+
+                    if (currentIndex < _currentCiudades.length) {
+                      // Al presionar el botón, FORZAMOS la actualización de la ciudad en esa posición
+                      widget.actualizaClima(_currentCiudades[currentIndex], force: true);
                     }
                   },
                 ),
               ),
 
-              // 3. NUEVO: Botón Izquierdo (Atrás)
+              // 3. Botón Izquierdo (Atrás)
               Positioned(
                 left: 15,
                 child: IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new,
+                  icon: const Icon(Icons.arrow_back_ios_new,
                       color: Colors.white70, size: 30),
                   onPressed: () {
-                    _pageController.previousPage(
-                      duration: Duration(milliseconds: 300),
+                    localController.previousPage(
+                      duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
                   },
                 ),
               ),
 
-              // 4. NUEVO: Botón Derecho (Adelante)
+              // 4. Botón Derecho (Adelante)
               Positioned(
                 right: 15,
                 child: IconButton(
-                  icon: Icon(Icons.arrow_forward_ios,
+                  icon: const Icon(Icons.arrow_forward_ios,
                       color: Colors.white70, size: 30),
                   onPressed: () {
-                    _pageController.nextPage(
-                      duration: Duration(milliseconds: 300),
+                    localController.nextPage(
+                      duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
                   },
@@ -388,16 +409,16 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16.0), 
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                
+
                 const Spacer(flex: 2), // <-- Spacer de la vez pasada
 
                 // Nombre de la ciudad
                 Text(
                   nombre,
-                  style: TextStyle(color: Colors.white, fontSize: 24),
+                  style: const TextStyle(color: Colors.white, fontSize: 24),
                   textAlign: TextAlign.center, // Centrar nombre
                 ),
                 const SizedBox(height: 30), // <-- Spacer de la vez pasada
@@ -415,7 +436,7 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
                   children: [
                     Text(
                       '${temperatura.toStringAsFixed(1)}',
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 80,
                           fontWeight: FontWeight.w200),
@@ -436,7 +457,7 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
                 // Descripción del clima
                 Text(
                   _obtenerDescripcionClima(simoboloClima),
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.w300),
@@ -445,7 +466,7 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
                 // Puse los items de info en una Fila (Row)
                 // para que aparezcan uno al lado del otro.
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -463,7 +484,7 @@ class _ClimaCarouselViewState extends State<ClimaCarouselView> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 const Spacer(flex: 1), // <-- Spacer de la vez pasada
               ],
             ),

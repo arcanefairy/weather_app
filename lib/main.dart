@@ -35,14 +35,14 @@ class _MyAppState extends State<MyApp> {
       GoRoute(path: '/', builder: (context, state) => const MyHomePage(title:'Inicio')),
       GoRoute(path: '/agregar_ciudades', builder: (context, state) => AgregarCiudadesPage()),
       GoRoute(path: '/creditos', builder: (context, state) => const CreditosPage()),
-      
+
     ]);
     return MaterialApp.router( title: 'Weather App',
       routerConfig: router,
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
-      themeMode: themeProvider.themeMode, 
-      );
+      themeMode: themeProvider.themeMode,
+    );
   }
 }
 
@@ -55,7 +55,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Future<List<Map<String, dynamic>>> ciudadesGuardadas = Future<List<Map<String, dynamic>>>.value([]);
-// Cargamos url, user  y pass desde el archivo .env
+// Cargamos url, user y pass desde el archivo .env
   static String get apiTokenUrl => dotenv.env['meteomatics_api_url'] ?? 'https://login.meteomatics.com/api/v1/token';
   static String get username => dotenv.env['meteomatics_user'] ?? '';
   static String get password => dotenv.env['meteomatics_pwd'] ?? '';
@@ -63,27 +63,47 @@ class _MyHomePageState extends State<MyHomePage> {
   String apiToken = '';
   int? selectedIndex;
 
-@override
+  // Nuevo: Estado para mantener el índice actual del carrusel y persistirlo.
+  int _currentIndex = 0;
+
+  @override
   void initState() {
     super.initState();
     debugPrint('API URL: $apiTokenUrl');
     debugPrint('Username: $username');
     // imprime la contraseña de forma segura sin mostrarla completa
     debugPrint('Password: ${'*' * password.length}');
-    // aquí vamos a llamar a la función para obtener el token
     obtenToken();
-    // acá vamos a cargar las ciudades guardadas y usar la primera para actualizar el clima
-    //_cargarYActualizarPrimeraCiudad();
-    ciudadesGuardadas = _ciudadesGuardadas();
-
+    // Reemplazamos _cargarYActualizarPrimeraCiudad por esta nueva función
+    // que carga el índice guardado antes de actualizar el Future.
+    _cargarCiudadesYIndice();
   }
-  
+
+  // Nuevo: Carga ciudades y el índice guardado de persistencia
+  Future<void> _cargarCiudadesYIndice() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedIndex = prefs.getInt('last_city_index');
+    final ciudades = await _ciudadesGuardadas();
+
+    setState(() {
+      ciudadesGuardadas = Future.value(ciudades);
+      // Validamos y establecemos el índice guardado
+      if (ciudades.isNotEmpty && savedIndex != null && savedIndex >= 0 && savedIndex < ciudades.length) {
+        _currentIndex = savedIndex;
+      } else {
+        _currentIndex = 0;
+      }
+    });
+  }
+
+  // Comentado: Esta función ya no se usa, la reemplaza _cargarCiudadesYIndice
+  /*
   Future<void> _cargarYActualizarPrimeraCiudad() async {
     final ciudades = await _ciudadesGuardadas();
     setState(() {
       ciudadesGuardadas = Future.value(ciudades);
     });
-    
+
     if (ciudades.isNotEmpty) {
       city = ciudades[0];
       debugPrint('Primera ciudad cargada: ${city['nombre']}');
@@ -94,8 +114,21 @@ class _MyHomePageState extends State<MyHomePage> {
       debugPrint('No hay ciudades guardadas para actualizar el clima');
     }
   }
+  */
 
-Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
+  // Nuevo: Callback para que el carrusel nos informe el índice, lo actualice y persista.
+  void _updateCurrentIndex(int index) async {
+    // Si el índice realmente cambió
+    if (_currentIndex != index) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('last_city_index', index);
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
     final prefs = await SharedPreferences.getInstance();
     final ciudadesString = prefs.getStringList('ciudades') ?? [];
     return ciudadesString.map((ciudad) => json.decode(ciudad) as Map<String, dynamic>).toList();
@@ -122,16 +155,15 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
     }
   }
 
-  // --- CAMBIO 1 ---
   // Agregamos el parámetro opcional {bool force = false}
   Future<void> _actualizaClima(Map<String, dynamic> ciudad, {bool force = false}) async {
     debugPrint('Actualizando clima para ${ciudad['nombre']}. Forzado: $force');
-    
+
     if (apiToken.isEmpty) {
       debugPrint('No se puede actualizar el clima sin un token válido.');
       return;
     }
-    
+
     bool actualizar = false;
     String nombreCiudad = ciudad['nombre'] ?? 'Desconocida';
     double latitud = ciudad['latitud'] ?? 0.0;
@@ -139,7 +171,6 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
     debugPrint('Ciudad: $nombreCiudad, Latitud: $latitud, Longitud: $longitud');
     String ultimaActualizacion = '';
 
-    // --- CAMBIO 2 ---
     // Nueva lógica para decidir si actualizar
     if (force) {
       // Si el botón de refrescar fue presionado, forzamos la actualización
@@ -155,7 +186,7 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
       DateTime ultimaActualizacionDT = DateTime.parse(ultimaActualizacion);
       DateTime ahoraZ = DateTime.now().toUtc();
       Duration diferencia = ahoraZ.difference(ultimaActualizacionDT);
-      
+
       if (diferencia.inMinutes >= 60) {
         actualizar = true;
         debugPrint('Actualizando porque han pasado ${diferencia.inMinutes} minutos.');
@@ -163,18 +194,18 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
         debugPrint('NO se actualiza, solo han pasado ${diferencia.inMinutes} minutos.');
       }
     }
-    
+
     String hora_actualZ = DateTime.now().toUtc().toIso8601String();
-    
+
     // Si es necesario actualizar, hacemos la llamada a la API
     if (actualizar) {
       String url = 'https://api.meteomatics.com/$hora_actualZ/t_2m:C,wind_speed_10m:ms,weather_symbol_1h:idx/$latitud,$longitud/json?access_token=$apiToken';
       debugPrint('URL de la API: $url');
       final response = await http.get(Uri.parse(url));
-      
+
       if (response.statusCode == 200) {
         final climaData = json.decode(response.body);
-        final data = climaData['data']; 
+        final data = climaData['data'];
         // Obtenemos los datos del clima
         final t2m = data[0]['coordinates'][0]['dates'][0]['value'];
         final windSpeed = data[1]['coordinates'][0]['dates'][0]['value'];
@@ -186,7 +217,7 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
         ciudad['velocidad_viento'] = windSpeed;
         ciudad['simbolo_clima'] = weatherSymbol;
         ciudad['ultima_actualizacion'] = ultimaActualizacion;
-        
+
         // Guardamos los cambios en SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         final ciudadesActualizadas = await ciudadesGuardadas;
@@ -197,8 +228,9 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
           return json.encode(c);
         }).toList();
         await prefs.setStringList('ciudades', ciudadesString);
-        
+
         setState(() {
+          // Esto fuerza la actualización del FutureBuilder en el carrusel
           ciudadesGuardadas = Future.value(ciudadesActualizadas.map((c) {
             if (c['nombre'] == ciudad['nombre']) {
               return ciudad;
@@ -209,24 +241,32 @@ Future<List<Map<String, dynamic>>> _ciudadesGuardadas() async {
 
         debugPrint('$nombreCiudad Temperatura: $t2m °C, Viento: $windSpeed m/s');
         if(mounted) {
-          setState(() {});
+          // El setState dentro de la actualización del Future ya reconstruye el widget,
+          // no necesitamos este setState extra si ya actualizamos ciudadesGuardadas.
+          // setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Clima actualizado: $t2m °C')),
           );
         }
-        
-    } else {
-        debugPrint('Error al obtener el clima: ${response.statusCode}');  
+
+      } else {
+        debugPrint('Error al obtener el clima: ${response.statusCode}');
+      }
     }
-  }
   }
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: widget.title,
       body: ClimaCarouselView(
+        // Nuevo: Usamos una Key para forzar a Flutter a reutilizar el State del carrusel,
+        // lo que evita que el PageController se reinicie a 0.
+        key: const ValueKey('ClimaCarouselViewKey'),
         ciudadesGuardadas: ciudadesGuardadas,
         actualizaClima: _actualizaClima,
+        // Nuevo: Pasamos el índice actual y la función para actualizarlo.
+        initialIndex: _currentIndex,
+        onPageChanged: _updateCurrentIndex,
       ),
     );
   }
